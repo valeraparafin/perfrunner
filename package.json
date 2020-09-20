@@ -1,8 +1,10 @@
 {
   "name": "root",
   "private": false,
+  "version":"0.0.1",
   "devDependencies": {
     "lerna": "~3.22.1"
+
   },
   "scripts": {
     "lerna": "lerna",
