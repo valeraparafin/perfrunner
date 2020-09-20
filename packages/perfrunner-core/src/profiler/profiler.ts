@@ -1,11 +1,11 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { debug, log } from '../logger';
-import { NetworkSetup } from './perf-options';
-import { Tracer } from './trace';
-import { setpPerformanceConditions } from './setup';
-import { extractPerformanceMetrics } from './extractor';
-import { iterateAsync, asyncToArray } from '../utils';
-import { LARGEST_CONTENTFUL_PAINT } from './performance-observers';
+import puppeteer, {Browser, Page} from 'puppeteer';
+import {debug, log} from '../logger';
+import {NetworkSetup} from './perf-options';
+import {Tracer} from './trace';
+import {setpPerformanceConditions} from './setup';
+import {extractPerformanceMetrics} from './extractor';
+import {iterateAsync, asyncToArray} from '../utils';
+import {LARGEST_CONTENTFUL_PAINT} from './performance-observers';
 
 const MAX_RETRIES = 1;
 
@@ -26,16 +26,21 @@ type BrowserLaunchOptions = {
     executablePath: string | undefined;
 };
 
+type Login = {
+    login: string;
+}
+
+
 async function warmingBrowser(url: URL, pageInstance: Page) {
     debug('warming up page');
-    await pageInstance.goto(url.href, { waitUntil: 'networkidle0' });
+    await pageInstance.goto(url.href, {waitUntil: 'networkidle0'});
     debug('warming finished, closing page');
     await pageInstance.close();
 }
 
 async function runApplication(url: URL, page: Page, waitFor?: string | number) {
     debug('launching the app');
-    await page.goto(url.href, { waitUntil: 'networkidle0' });
+    await page.goto(url.href, {waitUntil: 'networkidle0'});
     if (typeof waitFor === 'number' && waitFor != 0 && !isNaN(waitFor)) {
         debug(`waiting for timer: ${waitFor} the app`);
         await page.waitFor(waitFor);
@@ -44,6 +49,20 @@ async function runApplication(url: URL, page: Page, waitFor?: string | number) {
         debug(`waiting for selector: ${waitFor} the app`);
         await page.waitForSelector(waitFor);
     }
+}
+
+async function authPage(url: URL, page: Page, login: Login, password: Password) {
+    const login = 'ivaleronov@yandex.ru'
+    const password = 'A123321b'
+    const page = await browser.newPage();
+    await page.goto('url.href', {waitUntil: 'networkidle0'});
+    await page.waitFor('input[name=email]');
+    await page.waitFor('input[name=password]');
+    await page.$eval('input[name=email]', el => el.value = login);
+    await page.$eval('input[name=password]', el => el.value = password);
+    await page.click('[name="Sign in"]');
+
+
 }
 
 async function newPage(browser: Browser, timeout: number) {
@@ -58,17 +77,20 @@ type ProfileResult = Promise<{
 }>;
 
 async function profilePage(browser: Browser, params: ProfileParams, traceTo: string, timeout: number, retries = 0): ProfileResult {
-    const { useCache, url, throttlingRate, network, waitFor } = params;
+    const {useCache, url, throttlingRate, network, waitFor} = params;
     const tracer = new Tracer(traceTo);
     let page: Page | null = null;
     try {
         page = await newPage(browser, timeout);
-
-        await setpPerformanceConditions(page, { useCache, throttlingRate, network });
+        await authPage(url, page, login, password);
+        await setpPerformanceConditions(page, {useCache, throttlingRate, network});
 
         await tracer.start(page);
         await runApplication(url, page, waitFor);
+
+
         const trace = await tracer.stop();
+
 
         const result = await extractPerformanceMetrics(page, trace);
         await page.close();
@@ -78,7 +100,6 @@ async function profilePage(browser: Browser, params: ProfileParams, traceTo: str
 
         const lcp = result.performanceEntries.find((x) => x.entryType === LARGEST_CONTENTFUL_PAINT);
         log(`lcp: ${lcp ? lcp.startTime : 'not recorded'}`);
-
         return result;
     } catch (error) {
         if (page) {
@@ -94,13 +115,14 @@ async function profilePage(browser: Browser, params: ProfileParams, traceTo: str
         throw error;
     }
 }
+
 export async function runProfilingSession(
     browserLaunchOptions: BrowserLaunchOptions,
     profileOptions: ProfileParams,
     numberOfRuns: number,
     outputTracesTo: string
 ) {
-    const { args, headless, timeout, ignoreDefaultArgs, product, executablePath } = browserLaunchOptions;
+    const {args, headless, timeout, ignoreDefaultArgs, product, executablePath} = browserLaunchOptions;
 
     debug(`starting browser with args: ${args && args.length ? args : `no args provided`}`);
 
