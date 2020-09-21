@@ -8,7 +8,7 @@
     "test": "ts-mocha -p ./tsconfig.json ./**/*.test.ts",
     "tsc": "tsc",
     "prettier": "prettier --config ../../.prettierrc --write ./src/**/*.ts",
-    "build": "tsc -p ./src",
+    "build": "tsc -p .",
     "pack": "npm pack",
     "preversion": "npm run build && npm run test",
     "prepublish": "npm run build && npm run test"
